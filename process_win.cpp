@@ -3,6 +3,10 @@
 #include <cstring>
 #include <TlHelp32.h>
 #include <stdexcept>
+#include <cassert>
+
+#include <experimental/filesystem>
+using namespace std::experimental::filesystem::v1; 
 
 namespace TinyProcessLib {
 
@@ -103,13 +107,20 @@ Process::id_type Process::open(const string_type &command, const string_type &pa
   process_command+="\"";
 #endif
 
-  BOOL bSuccess = CreateProcess(nullptr, process_command.empty()?nullptr:&process_command[0], nullptr, nullptr, TRUE, 0,
-                                nullptr, path.empty()?nullptr:path.c_str(), &startup_info, &process_info);
+  {
+      const  std::experimental::filesystem::path cmd_exe_path = GetEnvVar(L"COMSPEC");
+      assert(std::experimental::filesystem::is_regular_file(cmd_exe_path));
+      assert(std::experimental::filesystem::exists(cmd_exe_path));
 
-  if(!bSuccess)
-    return 0;
-  else
-    CloseHandle(process_info.hThread);
+      const auto cmd_args = L"/C " + process_command;
+
+      BOOL bSuccess = CreateProcess(cmd_exe_path.c_str(), LPWSTR(cmd_args.c_str()), nullptr, nullptr, TRUE, 0,
+                                    nullptr, path.empty() ? nullptr : path.c_str(), &startup_info, &process_info);
+      if (!bSuccess)
+          return 0;
+      else
+          CloseHandle(process_info.hThread);
+  }
 
   if(stdin_fd) *stdin_fd=stdin_wr_p.detach();
   if(stdout_fd) *stdout_fd=stdout_rd_p.detach();
@@ -119,6 +130,18 @@ Process::id_type Process::open(const string_type &command, const string_type &pa
   data.id=process_info.dwProcessId;
   data.handle=process_info.hProcess;
   return process_info.dwProcessId;
+}
+
+Process::string_type Process::GetEnvVar(const Process::string_type& name)
+{
+    DWORD buffsize = 32767; // Limit according to http://msdn.microsoft.com/en-us/library/ms683188.aspx
+    string_type buff;
+    buff.resize(buffsize);
+    buffsize = GetEnvironmentVariable(name.c_str(), &buff[0], buffsize);
+    assert(buffsize);
+    buff.resize(buffsize);
+
+    return buff;
 }
 
 void Process::async_read() noexcept {

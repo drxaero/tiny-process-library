@@ -3,7 +3,6 @@
 
 #include <string>
 #include <functional>
-#include <vector>
 #include <mutex>
 #include <thread>
 #include <memory>
@@ -89,7 +88,9 @@ private:
   std::unique_ptr<fd_type> stdout_fd, stderr_fd, stdin_fd;
   
   id_type open(const string_type &command, const string_type &path) noexcept;
-#ifndef _WIN32
+#ifdef _WIN32
+  static string_type GetEnvVar(const string_type& name);
+#else
   id_type open(std::function<void()> function) noexcept;
 #endif
   void async_read() noexcept;

@@ -9,7 +9,7 @@ int main() {
   auto output=make_shared<string>();
   auto error=make_shared<string>();
   {
-    Process process("echo Test", "", [output](const char *bytes, size_t n) {
+    Process process(L"echo Test", L"", [output](const char *bytes, size_t n) {
       *output+=string(bytes, n);
     });
     assert(process.get_exit_status()==0);
@@ -32,7 +32,7 @@ int main() {
 #endif
   
   {
-    Process process("echo Test && ls an_incorrect_path", "", [output](const char *bytes, size_t n) {
+    Process process(L"echo Test && ls an_incorrect_path", L"", [output](const char *bytes, size_t n) {
       *output+=string(bytes, n);
     }, [error](const char *bytes, size_t n) {
       *error+=string(bytes, n);
@@ -44,8 +44,9 @@ int main() {
     error->clear();
   }
   
+#ifndef _WIN32 // _WIN32 doesn't support bash, cat and sleep.
   {
-    Process process("bash", "", [output](const char *bytes, size_t n) {
+    Process process(L"bash", L"", [output](const char *bytes, size_t n) {
       *output+=string(bytes, n);
     }, nullptr, true);
     process.write("echo Test\n");
@@ -56,7 +57,7 @@ int main() {
   }
   
   {
-    Process process("cat", "", [output](const char *bytes, size_t n) {
+    Process process(L"cat", L"", [output](const char *bytes, size_t n) {
       *output+=string(bytes, n);
     }, nullptr, true);
     process.write("Test\n");
@@ -67,7 +68,7 @@ int main() {
   }
   
   {
-    Process process("sleep 5");
+    Process process(L"sleep 5");
     int exit_status=-2;
     assert(!process.try_get_exit_status(exit_status));
     assert(exit_status==-2);
@@ -78,4 +79,5 @@ int main() {
     assert(process.try_get_exit_status(exit_status));
     assert(exit_status==0);
   }
+#endif
 }
