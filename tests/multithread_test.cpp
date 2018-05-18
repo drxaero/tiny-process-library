@@ -13,13 +13,27 @@ int main() {
   for(size_t ct=0;ct<4;ct++) {
     threads.emplace_back([&stdout_error, &exit_status_error, ct]() {
       for(size_t c=0;c<2500;c++) {
-        Process process("echo Hello World "+to_string(c)+" "+to_string(ct), "", [&stdout_error, ct, c](const char *bytes, size_t n) {
-          if(string(bytes, n)!="Hello World "+to_string(c)+" "+to_string(ct)+"\n")
-            stdout_error=true;
-        }, [](const char *, size_t) {
+#ifdef _WIN32
+        const Process::string_type cmd  = L"echo Hello World " + to_wstring(c) + L" " + to_wstring(ct);
+        const Process::string_type path;
+#else
+        const Process::string_type cmd  = "echo Hello World " + to_string(c) + " " + to_string(ct);
+        const Process::string_type path = "";
+#endif
+        Process process(cmd, path, [&stdout_error, ct, c](const char *bytes, size_t n) {
+        const auto actual = string(bytes, n);
+#ifdef _WIN32
+        const auto line_end = "\r\n";
+#else
+        const auto line_end = "\n";
+#endif
+        const auto expected = "Hello World " + to_string(c) + " " + to_string(ct) + line_end;
+        if(actual != expected)
+          stdout_error=true;
+        }, [](const char*, size_t) {
         }, true);
-        auto exit_status=process.get_exit_status();
-        if(exit_status!=0)
+        const auto exit_status = process.get_exit_status();
+        if(exit_status != EXIT_SUCCESS)
           exit_status_error=true;
         if(exit_status_error)
           return;
