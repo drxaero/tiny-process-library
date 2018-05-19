@@ -10,7 +10,7 @@ using namespace std::experimental::filesystem::v1;
 
 namespace TinyProcessLib {
 
-Process::Data::Data() noexcept : id(0), handle(NULL) {}
+Process::Data::Data() noexcept : id(0), handle(nullptr) {}
 
 // Simple HANDLE wrapper to close it automatically from the destructor.
 class Handle {
@@ -19,12 +19,12 @@ public:
   ~Handle() noexcept {
     close();
   }
-  void close() noexcept {
+  void close() const noexcept {
     if (handle != INVALID_HANDLE_VALUE)
       CloseHandle(handle);
   }
   HANDLE detach() noexcept {
-    HANDLE old_handle = handle;
+    const auto old_handle = handle;
     handle = INVALID_HANDLE_VALUE;
     return old_handle;
   }
@@ -40,11 +40,11 @@ std::mutex create_process_mutex;
 //Based on the example at https://msdn.microsoft.com/en-us/library/windows/desktop/ms682499(v=vs.85).aspx.
 Process::id_type Process::open(const string_type &command, const string_type &path) noexcept {
   if(open_stdin)
-    stdin_fd=std::unique_ptr<fd_type>(new fd_type(NULL));
+    stdin_fd= std::make_unique<fd_type>(nullptr);
   if(read_stdout)
-    stdout_fd=std::unique_ptr<fd_type>(new fd_type(NULL));
+    stdout_fd= std::make_unique<fd_type>(nullptr);
   if(read_stderr)
-    stderr_fd=std::unique_ptr<fd_type>(new fd_type(NULL));
+    stderr_fd= std::make_unique<fd_type>(nullptr);
 
   Handle stdin_rd_p;
   Handle stdin_wr_p;
@@ -91,7 +91,7 @@ Process::id_type Process::open(const string_type &command, const string_type &pa
   if(stdin_fd || stdout_fd || stderr_fd)
     startup_info.dwFlags |= STARTF_USESTDHANDLES;
 
-  string_type process_command=command;
+  const string_type& process_command = command;
 #ifdef MSYS_PROCESS_USE_SH
   size_t pos=0;
   while((pos=process_command.find('\\', pos))!=string_type::npos) {
@@ -114,17 +114,17 @@ Process::id_type Process::open(const string_type &command, const string_type &pa
 
       const auto cmd_args = L"/C " + process_command;
 
-      BOOL bSuccess = CreateProcess(cmd_exe_path.c_str(), LPWSTR(cmd_args.c_str()), nullptr, nullptr, TRUE, 0,
-                                    nullptr, path.empty() ? nullptr : path.c_str(), &startup_info, &process_info);
-      if (!bSuccess)
-          return 0;
-      else
+      const auto bSuccess = CreateProcess(cmd_exe_path.c_str(), LPWSTR(cmd_args.c_str()), nullptr, nullptr, TRUE, 0,
+                                          nullptr, path.empty() ? nullptr : path.c_str(), &startup_info, &process_info);
+      if (bSuccess)
           CloseHandle(process_info.hThread);
+      else
+          return 0;
   }
 
-  if(stdin_fd) *stdin_fd=stdin_wr_p.detach();
-  if(stdout_fd) *stdout_fd=stdout_rd_p.detach();
-  if(stderr_fd) *stderr_fd=stderr_rd_p.detach();
+  if(stdin_fd)  *stdin_fd  = stdin_wr_p.detach();
+  if(stdout_fd) *stdout_fd = stdout_rd_p.detach();
+  if(stderr_fd) *stderr_fd = stderr_rd_p.detach();
 
   closed=false;
   data.id=process_info.dwProcessId;
@@ -153,7 +153,7 @@ void Process::async_read() noexcept {
       DWORD n;
       std::unique_ptr<char[]> buffer(new char[buffer_size]);
       for (;;) {
-        BOOL bSuccess = ReadFile(*stdout_fd, static_cast<CHAR*>(buffer.get()), static_cast<DWORD>(buffer_size), &n, nullptr);
+        const auto bSuccess = ReadFile(*stdout_fd, static_cast<CHAR*>(buffer.get()), static_cast<DWORD>(buffer_size), &n, nullptr);
         if(!bSuccess || n == 0)
           break;
         read_stdout(buffer.get(), static_cast<size_t>(n));
@@ -165,7 +165,7 @@ void Process::async_read() noexcept {
       DWORD n;
       std::unique_ptr<char[]> buffer(new char[buffer_size]);
       for (;;) {
-        BOOL bSuccess = ReadFile(*stderr_fd, static_cast<CHAR*>(buffer.get()), static_cast<DWORD>(buffer_size), &n, nullptr);
+        const auto bSuccess = ReadFile(*stderr_fd, static_cast<CHAR*>(buffer.get()), static_cast<DWORD>(buffer_size), &n, nullptr);
         if(!bSuccess || n == 0)
           break;
         read_stderr(buffer.get(), static_cast<size_t>(n));
@@ -196,7 +196,7 @@ bool Process::try_get_exit_status(int &exit_status) noexcept {
   if(data.id==0)
     return false;
 
-  DWORD wait_status = WaitForSingleObject(data.handle, 0);
+  const auto wait_status = WaitForSingleObject(data.handle, 0);
 
   if (wait_status == WAIT_TIMEOUT)
     return false;
@@ -224,11 +224,11 @@ void Process::close_fds() noexcept {
   if(stdin_fd)
     close_stdin();
   if(stdout_fd) {
-    if(*stdout_fd!=NULL) CloseHandle(*stdout_fd);
+    if(*stdout_fd!=nullptr) CloseHandle(*stdout_fd);
     stdout_fd.reset();
   }
   if(stderr_fd) {
-    if(*stderr_fd!=NULL) CloseHandle(*stderr_fd);
+    if(*stderr_fd!=nullptr) CloseHandle(*stderr_fd);
     stderr_fd.reset();
   }
 }
@@ -240,13 +240,8 @@ bool Process::write(const char *bytes, size_t n) {
   std::lock_guard<std::mutex> lock(stdin_mutex);
   if(stdin_fd) {
     DWORD written;
-    BOOL bSuccess=WriteFile(*stdin_fd, bytes, static_cast<DWORD>(n), &written, nullptr);
-    if(!bSuccess || written==0) {
-      return false;
-    }
-    else {
-      return true;
-    }
+    const auto bSuccess=WriteFile(*stdin_fd, bytes, static_cast<DWORD>(n), &written, nullptr);
+    return (bSuccess && written != 0);
   }
   return false;
 }
@@ -254,7 +249,7 @@ bool Process::write(const char *bytes, size_t n) {
 void Process::close_stdin() noexcept {
   std::lock_guard<std::mutex> lock(stdin_mutex);
   if(stdin_fd) {
-    if(*stdin_fd!=NULL) CloseHandle(*stdin_fd);
+    if(*stdin_fd!= nullptr) CloseHandle(*stdin_fd);
     stdin_fd.reset();
   }
 }
@@ -263,7 +258,7 @@ void Process::close_stdin() noexcept {
 void Process::kill(bool /*force*/) noexcept {
   std::lock_guard<std::mutex> lock(close_mutex);
   if(data.id>0 && !closed) {
-    HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+    const auto snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
     if(snapshot) {
       PROCESSENTRY32 process;
       ZeroMemory(&process, sizeof(process));
@@ -271,7 +266,7 @@ void Process::kill(bool /*force*/) noexcept {
       if(Process32First(snapshot, &process)) {
         do {
           if(process.th32ParentProcessID==data.id) {
-            HANDLE process_handle = OpenProcess(PROCESS_TERMINATE, FALSE, process.th32ProcessID);
+            const auto process_handle = OpenProcess(PROCESS_TERMINATE, FALSE, process.th32ProcessID);
             if(process_handle) {
               TerminateProcess(process_handle, 2);
               CloseHandle(process_handle);
@@ -290,7 +285,7 @@ void Process::kill(id_type id, bool /*force*/) noexcept {
   if(id==0)
     return;
 
-  HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+  const auto snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
   if(snapshot) {
     PROCESSENTRY32 process;
     ZeroMemory(&process, sizeof(process));
@@ -298,7 +293,7 @@ void Process::kill(id_type id, bool /*force*/) noexcept {
     if(Process32First(snapshot, &process)) {
       do {
         if(process.th32ParentProcessID==id) {
-          HANDLE process_handle = OpenProcess(PROCESS_TERMINATE, FALSE, process.th32ProcessID);
+          const auto process_handle = OpenProcess(PROCESS_TERMINATE, FALSE, process.th32ProcessID);
           if(process_handle) {
             TerminateProcess(process_handle, 2);
             CloseHandle(process_handle);
@@ -308,7 +303,7 @@ void Process::kill(id_type id, bool /*force*/) noexcept {
     }
     CloseHandle(snapshot);
   }
-  HANDLE process_handle = OpenProcess(PROCESS_TERMINATE, FALSE, id);
+  const auto process_handle = OpenProcess(PROCESS_TERMINATE, FALSE, id);
   if(process_handle) TerminateProcess(process_handle, 2);
 }
 
