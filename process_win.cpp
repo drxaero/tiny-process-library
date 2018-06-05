@@ -61,19 +61,26 @@ Process::id_type Process::open(const string_type &command, const string_type &pa
 
   std::lock_guard<std::mutex> lock(create_process_mutex);
   if(stdin_fd) {
-    if (!CreatePipe(&stdin_rd_p, &stdin_wr_p, &security_attributes, 0) ||
-        !SetHandleInformation(stdin_wr_p, HANDLE_FLAG_INHERIT, 0))
+    if (!CreatePipe(&stdin_rd_p, &stdin_wr_p, &security_attributes, 0)) {
       return 0;
+    }
+    if (!SetHandleInformation(stdin_wr_p, HANDLE_FLAG_INHERIT, 0)) {
+      return 0;
+    }
   }
   if(stdout_fd) {
-    if (!CreatePipe(&stdout_rd_p, &stdout_wr_p, &security_attributes, 0) ||
-        !SetHandleInformation(stdout_rd_p, HANDLE_FLAG_INHERIT, 0)) {
+    if (!CreatePipe(&stdout_rd_p, &stdout_wr_p, &security_attributes, 0)) {
+      return 0;
+    }
+    if (!SetHandleInformation(stdout_rd_p, HANDLE_FLAG_INHERIT, 0)) {
       return 0;
     }
   }
   if(stderr_fd) {
-    if (!CreatePipe(&stderr_rd_p, &stderr_wr_p, &security_attributes, 0) ||
-        !SetHandleInformation(stderr_rd_p, HANDLE_FLAG_INHERIT, 0)) {
+    if (!CreatePipe(&stderr_rd_p, &stderr_wr_p, &security_attributes, 0)) {
+      return 0;
+    }
+    if (!SetHandleInformation(stderr_rd_p, HANDLE_FLAG_INHERIT, 0)) {
       return 0;
     }
   }
@@ -108,13 +115,7 @@ Process::id_type Process::open(const string_type &command, const string_type &pa
 #endif
 
   {
-      const  std::experimental::filesystem::path cmd_exe_path = GetEnvVar(L"COMSPEC");
-      assert(std::experimental::filesystem::is_regular_file(cmd_exe_path));
-      assert(std::experimental::filesystem::exists(cmd_exe_path));
-
-      const auto cmd_args = L"/C " + process_command;
-
-      const auto bSuccess = CreateProcess(cmd_exe_path.c_str(), LPWSTR(cmd_args.c_str()), nullptr, nullptr, TRUE, 0,
+      const auto bSuccess = CreateProcess(nullptr, LPWSTR(process_command.c_str()), nullptr, nullptr, TRUE, CREATE_UNICODE_ENVIRONMENT,
                                           nullptr, path.empty() ? nullptr : path.c_str(), &startup_info, &process_info);
       if (bSuccess)
           CloseHandle(process_info.hThread);
