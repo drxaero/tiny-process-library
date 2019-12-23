@@ -1,9 +1,9 @@
 #include <gtest/gtest.h>
 
 #include <Windows.h>
+#include <cassert>
 
-#include <experimental/filesystem>
-using namespace std::experimental::filesystem::v1; 
+#include <filesystem>
 
 #include "../../../process.hpp"
 
@@ -12,19 +12,19 @@ namespace WinExeTests
     class WinExeTests : public testing::Test
     {
     protected:
-        std::experimental::filesystem::path _sut;
-        std::experimental::filesystem::path _pattern_dir;
+        std::filesystem::path _sut;
+        std::filesystem::path _pattern_dir;
 
         void SetUp() override
         {
             _pattern_dir = L"../../tests/patterns/";
 
-            assert(std::experimental::filesystem::is_directory(_pattern_dir));
-            assert(std::experimental::filesystem::exists(_pattern_dir));
+            assert(std::filesystem::is_directory(_pattern_dir));
+            assert(std::filesystem::exists(_pattern_dir));
         }
 
-        static _Check_return_ bool FilesAreTheSame (_In_ const std::experimental::filesystem::path& file1,
-                                                    _In_ const std::experimental::filesystem::path& file2)
+        static _Check_return_ bool FilesAreTheSame (_In_ const std::filesystem::path& file1,
+                                                    _In_ const std::filesystem::path& file2)
         {
             using namespace std::string_literals;
             const auto fileComparisonExe  = L"FC.exe"s;
@@ -50,10 +50,10 @@ namespace WinExeTests
         const auto file1 = _pattern_dir / "ha1.txt";
         const auto file2 = _pattern_dir / "ha2.txt";
 
-        assert(std::experimental::filesystem::exists(file1));
-        assert(std::experimental::filesystem::exists(file2));
-        assert(std::experimental::filesystem::is_regular_file(file1));
-        assert(std::experimental::filesystem::is_regular_file(file2));
+        assert(std::filesystem::exists(file1));
+        assert(std::filesystem::exists(file2));
+        assert(std::filesystem::is_regular_file(file1));
+        assert(std::filesystem::is_regular_file(file2));
 
         const auto same = FilesAreTheSame(file1, file2);
 
@@ -65,10 +65,10 @@ namespace WinExeTests
         const auto file1 = _pattern_dir / "ha1.txt";
         const auto file2 = _pattern_dir / "haha.txt";
 
-        assert(std::experimental::filesystem::exists(file1));
-        assert(std::experimental::filesystem::exists(file2));
-        assert(std::experimental::filesystem::is_regular_file(file1));
-        assert(std::experimental::filesystem::is_regular_file(file2));
+        assert(std::filesystem::exists(file1));
+        assert(std::filesystem::exists(file2));
+        assert(std::filesystem::is_regular_file(file1));
+        assert(std::filesystem::is_regular_file(file2));
 
         const auto same = FilesAreTheSame(file1, file2);
 

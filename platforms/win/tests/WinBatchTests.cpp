@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
+#include <cassert>
 
-#include <experimental/filesystem>
-using namespace std::experimental::filesystem::v1; 
+#include <filesystem>
 
 #include "../../../process.hpp"
 
@@ -10,22 +10,22 @@ namespace WinBatchTests
     class WinBatchTests: public testing::Test
     {
 	protected:
-        std::experimental::filesystem::path _sut;
-        std::experimental::filesystem::path _pattern_dir;
+        std::filesystem::path _sut;
+        std::filesystem::path _pattern_dir;
 
         void SetUp() override
         {
             _pattern_dir = L"../../tests/patterns/";
 
-            assert(std::experimental::filesystem::is_directory(_pattern_dir));
-            assert(std::experimental::filesystem::exists(_pattern_dir));
+            assert(std::filesystem::is_directory(_pattern_dir));
+            assert(std::filesystem::exists(_pattern_dir));
         }
 
-        _Check_return_ int RunExideCodeBatch (_In_ int exit_code_to_be_returned) const
+        _Check_return_ int RunExitCodeBatch (_In_ int exit_code_to_be_returned) const
         {
             auto batch_file = _pattern_dir / "exit_code.bat";
-            assert(std::experimental::filesystem::is_regular_file(batch_file));
-            assert(std::experimental::filesystem::exists(batch_file));
+            assert(std::filesystem::is_regular_file(batch_file));
+            assert(std::filesystem::exists(batch_file));
 
             const auto cmd = batch_file.wstring() + L" " + std::to_wstring(exit_code_to_be_returned);
 
@@ -46,7 +46,7 @@ namespace WinBatchTests
     {
         const auto expected_exit_code = 0;
 
-        const auto actual_exit_code = RunExideCodeBatch(expected_exit_code);
+        const auto actual_exit_code = RunExitCodeBatch(expected_exit_code);
 
         EXPECT_EQ(expected_exit_code, actual_exit_code);
     }
@@ -55,7 +55,7 @@ namespace WinBatchTests
     {
         const auto expected_exit_code = 1;
 
-        const auto actual_exit_code = RunExideCodeBatch(expected_exit_code);
+        const auto actual_exit_code = RunExitCodeBatch(expected_exit_code);
 
         EXPECT_EQ(expected_exit_code, actual_exit_code);
     }
@@ -64,7 +64,7 @@ namespace WinBatchTests
     {
         const auto expected_exit_code = -1;
 
-        const auto actual_exit_code = RunExideCodeBatch(expected_exit_code);
+        const auto actual_exit_code = RunExitCodeBatch(expected_exit_code);
 
         EXPECT_EQ(expected_exit_code, actual_exit_code);
     }
